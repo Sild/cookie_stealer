@@ -1,0 +1,11 @@
+[package]
+name="cookie_stealer"
+version = "1.0.0"
+authors = [
+  "Sild <sildtm@icloud.com>",
+]
+
+[dependencies]
+sqlite3 = "0.24.0"
+os_type = "2.2.0"
+dirs = "2.0.2"
