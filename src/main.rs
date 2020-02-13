@@ -1,9 +1,22 @@
 extern crate os_type;
 extern crate dirs;
 extern crate sqlite;
-extern crate crypto;
+extern crate ring;
+extern crate aes;
 
+use ring::{digest, pbkdf2};
 use std::path::{Path, PathBuf};
+use std::borrow::Borrow;
+use std::num::NonZeroU32;
+
+static PBKDF2_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
+pub type Key = [u8; 16];
+
+
+
+use aes::block_cipher_trait::generic_array::GenericArray;
+use aes::block_cipher_trait::BlockCipher;
+use aes::Aes128;
 
 #[derive(Debug)]
 struct Cookie {
@@ -16,27 +29,31 @@ struct Cookie {
 struct OSSpecificParams {
     cookie_path: Option<PathBuf>,
     iterations: usize,
+    password_required: bool,
 }
 
 fn get_os_params() -> OSSpecificParams {
 
     let mut s_params = OSSpecificParams {
         cookie_path: dirs::home_dir(),
-        iterations: 0
+        iterations: 0,
+        password_required: false,
     };
 
     match os_type::current_platform().os_type {
         os_type::OSType::OSX => {
             s_params.cookie_path.as_mut().unwrap().push(Path::new("Library/Aplication Support/Google/Chrome/Default/Cookies"));
-            s_params.iterations = 32;
+            s_params.iterations = 1003;
+            s_params.password_required = true;
         },
         os_type::OSType::Unknown => {
             s_params.cookie_path = None
 
         },
         _ => {
-            s_params.cookie_path.as_mut().unwrap().push(Path::new("SomeLinuxPath"));
+            s_params.cookie_path.as_mut().unwrap().push(Path::new(".config/google-chrome/Default/Cookies"));
             s_params.iterations = 1;
+            s_params.password_required = false;
         },
     };
     return s_params;
@@ -78,21 +95,29 @@ fn extract_cookies(a_path: &std::path::Path) -> Vec<Cookie> {
     return res;
 }
 
-fn get_cipher_key(a_password: &mut str, a_iterations: usize) -> String {
-    let mut res = [0u8; 16];
-    return String::new();
-//    crypto::pbkdf2::pbkdf2(&mut a_password.as_bytes(), "saltysalt".as_bytes(), a_iterations as u32, &mut res);
-//    return unsafe { String::from_raw_parts(res.as_mut_ptr(), 16, 16) };
+fn get_cipher_key(a_password: & String, a_iterations: usize) -> Key {
+    let mut salt = Vec::with_capacity(9);
+    salt.extend(String::from("saltysalt").as_bytes());
+    let length = 16;
+
+    let mut res : Key = [0u8; 16];;
+    pbkdf2::derive(PBKDF2_ALG, NonZeroU32::new(a_iterations as u32).unwrap() , &salt, a_password.as_bytes(), &mut res);
+
+    return res;
+//    return String::new();
 }
 
-fn decrypt_cookie(a_cookie: &mut Cookie) {
+fn decrypt_value(encrypted: &String, key: &Key) -> String {
+    let k = GenericArray::from_slice(key.);
+    let cipher = Aes128::new(&k);
 
+    let mut block = GenericArray::from_slice(encrypted.as_bytes());
+    let mut bl2 = block.clone();
+    cipher.decrypt_block(&mut bl2);
+    return String::new();
 }
 
 fn main() {
-    //let user_password = read_pass();
-    //println!("Entered password: {}", user_password);
-
     let mut os_params = get_os_params();
 
     while !(os_params.cookie_path.is_some() && os_params.cookie_path.as_ref().unwrap().is_file() ){
@@ -101,11 +126,18 @@ fn main() {
     }
     println!("Cookie file found: {}", os_params.cookie_path.as_ref().unwrap().to_string_lossy());
 
-    let ket = get_cipher_key(read_user_input("enter the pass: ").as_mut_str(), os_params.iterations);
+    let user_password = match os_params.password_required {
+        true => read_user_input("enter the pass: "),
+        false => String::from("peanuts"),
+    };
+    println!("user password: {}", user_password);
+
+    let key = get_cipher_key(user_password.borrow(), os_params.iterations);
 
     let mut cookies = extract_cookies(os_params.cookie_path.as_ref().unwrap().as_path());
+    println!("cookies count: {}", cookies.len());
     for c in &mut cookies {
-        decrypt_cookie(c);
+        c.value = decrypt_value(c.encrypted_value.borrow(), key.borrow());
 //        println!("{:?}", c);
     }
 

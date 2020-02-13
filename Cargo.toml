@@ -9,4 +9,5 @@ authors = [
 sqlite = "0.25.0"
 os_type = "2.2.0"
 dirs = "2.0.2"
-rust-crypto = "0.2.36"
+ring = "0.17.0-alpha.1"
+aes = "0.3.2"
