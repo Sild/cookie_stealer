@@ -1,37 +1,47 @@
-extern crate ring;
+extern crate pbkdf2;
+extern crate hmac;
+extern crate sha2;
 extern crate aes;
 
-use std::num::NonZeroU32;
-use self::ring::{digest, pbkdf2};
+use self::hmac::Hmac;
+use self::sha2::Sha256;
 
-static PBKDF2_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
-pub type Key = [u8; 16];
-
+pub type KeyType = [u8; 16];
 
 
-use cipher::aes::block_cipher_trait::generic_array::GenericArray;
-use cipher::aes::block_cipher_trait::BlockCipher;
-use cipher::aes::Aes128;
+use self::aes::block_cipher_trait::generic_array::GenericArray;
+use self::aes::block_cipher_trait::BlockCipher;
+use self::aes::{Aes128, Aes256};
 
-
-pub fn get_cipher_key(a_password: & String, a_iterations: usize) -> Key {
-    let mut salt = Vec::with_capacity(9);
-    salt.extend(String::from("saltysalt").as_bytes());
-    let length = 16;
-
-    let mut res : Key = [0u8; 16];;
-    pbkdf2::derive(PBKDF2_ALG, NonZeroU32::new(a_iterations as u32).unwrap() , &salt, a_password.as_bytes(), &mut res);
-
+pub fn get_cipher_key(a_password: &str, a_iterations: usize) -> KeyType {
+    let salt = b"saltysalt";
+    let mut res: KeyType = [0u8; 16];
+    pbkdf2::pbkdf2::<Hmac<Sha256>>(a_password.as_bytes(), salt, a_iterations, res.as_mut());
     return res;
-//    return String::new();
 }
 
-pub fn decrypt_value(encrypted: &String, key: &Key) -> String {
-    // let k = GenericArray::from_slice(key.);
-    // let cipher = Aes128::new(&k);
+ pub fn decrypt_value(encrypted: &String, key: &KeyType) -> String {
+     let k = GenericArray::from_slice(key);
 
-    // let mut block = GenericArray::from_slice(encrypted.as_bytes());
-    // let mut bl2 = block.clone();
-    // cipher.decrypt_block(&mut bl2);
-    return String::new();
-}
+     let mut block = GenericArray::clone_from_slice(&[0u8; 16]);
+     let mut i: i32 = 15;
+     for c in encrypted.chars().rev() {
+         block[i as usize] = c as u8;
+         i -= 1;
+         if i < 0 {
+             break;
+         }
+     }
+
+     let cipher = Aes128::new(&k);
+     cipher.decrypt_block(&mut block);
+
+     let mut block2 = block.clone();
+     let mut res = String::new();
+     for e in block2.iter() {
+         res.push(char::from(e.to_owned()));
+     }
+     println!("res={}", res);
+     return res;
+//     return String::new();
+ }

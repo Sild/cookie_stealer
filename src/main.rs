@@ -22,7 +22,7 @@ fn get_os_params() -> OSSpecificParams {
 
     match os_type::current_platform().os_type {
         os_type::OSType::OSX => {
-            s_params.cookie_path.as_mut().unwrap().push(Path::new("Library/Aplication Support/Google/Chrome/Default/Cookies"));
+            s_params.cookie_path.as_mut().unwrap().push(Path::new("Library/Application Support/Google/Chrome/Default/Cookies"));
             s_params.iterations = 1003;
             s_params.password_required = true;
         },

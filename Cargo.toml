@@ -9,5 +9,9 @@ authors = [
 sqlite = "0.25.0"
 os_type = "2.2.0"
 dirs = "2.0.2"
-ring = "0.17.0-alpha.1"
+pbkdf2 = { version = "0.3", default-features = false }
+hmac = "0.7"
+sha2 = "0.8.1"
+crypto-mac = "0.7"
 aes = "0.3.2"
+generic-array = "0.13.2"
